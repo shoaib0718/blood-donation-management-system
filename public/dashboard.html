@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard - Blood Donation Campaign</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/theme.css" rel="stylesheet">
+  <style>
+    .navbar {
+      background-color: #0d6efd !important;
+    }
+    body {
+      background-color: #fff;
+    }
+    .donor-table {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">🩸 Blood</a>
+      <div class="d-flex ms-auto">
+        <a href="/" class="btn btn-light btn-sm me-2">Home</a>
+        <a href="/dashboard.html" class="btn btn-light btn-sm me-2">Dashboard</a>
+        <button id="logout-btn" class="btn btn-outline-light btn-sm">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard Content -->
+  <div class="container mt-5">
+    <h2 class="section-title">Dashboard</h2>
+
+    <!-- Search Donors -->
+    <div class="card p-4 mb-4">
+      <h3 class="card-title">Search Blood Donors</h3>
+      <form id="search-form">
+        <div class="mb-3">
+          <label for="searchBloodGroup" class="form-label">Blood Group</label>
+          <select class="form-control" id="searchBloodGroup" required>
+            <option value="" disabled selected>Select Blood Group</option>
+            <option value="A+">A+</option>
+            <option value="A-">A-</option>
+            <option value="B+">B+</option>
+            <option value="B-">B-</option>
+            <option value="AB+">AB+</option>
+            <option value="AB-">AB-</option>
+            <option value="O+">O+</option>
+            <option value="O-">O-</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Search</button>
+      </form>
+      <div id="search-results" class="donor-table"></div>
+    </div>
+
+    <!-- Add Donor Details -->
+    <div class="card p-4">
+      <h3 class="card-title">Add/Update Your Donor Details</h3>
+      <form id="donor-form">
+        <div class="mb-3">
+          <label for="donorName" class="form-label">Full Name</label>
+          <input type="text" class="form-control" id="donorName" placeholder="Enter your name" required>
+        </div>
+        <div class="mb-3">
+          <label for="donorBloodGroup" class="form-label">Blood Group</label>
+          <select class="form-control" id="donorBloodGroup" required>
+            <option value="" disabled selected>Select Blood Group</option>
+            <option value="A+">A+</option>
+            <option value="A-">A-</option>
+            <option value="B+">B+</option>
+            <option value="B-">B-</option>
+            <option value="AB+">AB+</option>
+            <option value="AB-">AB-</option>
+            <option value="O+">O+</option>
+            <option value="O-">O-</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="lastDonationDate" class="form-label">Last Donation Date (if any)</label>
+          <input type="date" class="form-control" id="lastDonationDate">
+        </div>
+        <div class="mb-3">
+          <label for="donorPhone" class="form-label">Phone Number</label>
+          <input type="tel" class="form-control" id="donorPhone" pattern="[0-9]{10,15}" placeholder="e.g., 1234567890" required>
+        </div>
+        <div class="mb-3">
+          <label for="donorLocation" class="form-label">Current Location</label>
+          <input type="text" class="form-control" id="donorLocation" placeholder="e.g., City, Address" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Donor Details</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Check if user is logged in
+    if (!localStorage.getItem('token')) {
+      alert('Please log in first.');
+      window.location.href = '/login.html';
+    }
+
+    // Logout button
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      window.location.href = '/login.html';
+    });
+
+    // Search form
+    document.getElementById('search-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const bloodGroup = document.getElementById('searchBloodGroup').value;
+      const resultsDiv = document.getElementById('search-results');
+
+      try {
+        const response = await fetch(`/api/donors/search?bloodGroup=${encodeURIComponent(bloodGroup)}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          if (data.donors.length === 0) {
+            resultsDiv.innerHTML = '<p>No donors found for this blood group.</p>';
+          } else {
+            let table = `
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Blood Group</th>
+                    <th>Contact</th>
+                    <th>Location</th>
+                    <th>Last Donation</th>
+                  </tr>
+                </thead>
+                <tbody>
+            `;
+            data.donors.forEach(donor => {
+              table += `
+                <tr>
+                  <td>${donor.name}</td>
+                  <td>${donor.bloodGroup}</td>
+                  <td>${donor.contact}</td>
+                  <td>${donor.address}</td>
+                  <td>${donor.lastDonation ? new Date(donor.lastDonation).toLocaleDateString() : 'N/A'}</td>
+                </tr>
+              `;
+            });
+            table += '</tbody></table>';
+            resultsDiv.innerHTML = table;
+          }
+        } else {
+          resultsDiv.innerHTML = `<p class="text-danger">${data.message || 'Search failed'}</p>`;
+        }
+      } catch (err) {
+        resultsDiv.innerHTML = `<p class="text-danger">Error: ${err.message}</p>`;
+      }
+    });
+
+    // Donor form
+    document.getElementById('donor-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const formData = {
+    name: document.getElementById('donorName').value,  // add this input to your form if you haven't yet
+    bloodGroup: document.getElementById('donorBloodGroup').value,
+    lastDonation: document.getElementById('lastDonationDate').value || null,
+    contact: document.getElementById('donorPhone').value,
+    address: document.getElementById('donorLocation').value,
+  };
+
+  try {
+    const response = await fetch('/api/donors/add', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('Donor details saved successfully!');
+      document.getElementById('donor-form').reset();
+    } else {
+      alert(data.message || 'Failed to save donor details');
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+});
+
+  </script>
+</body>
+</html>
